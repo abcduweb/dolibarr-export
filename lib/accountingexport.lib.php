@@ -224,7 +224,7 @@ function accountingexport_get_factures_fournisseurs($db, $date_debut, $date_fin,
                    bk.date_validated AS transfert_compta
             FROM ".MAIN_DB_PREFIX."facture_fourn f
             LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = f.fk_soc
-            LEFT JOIN ".MAIN_DB_PREFIX."paiementfourn_facture pfj ON pfj.fk_facturefourn = f.rowid
+            LEFT JOIN ".MAIN_DB_PREFIX."paiementfourn_facturefourn pfj ON pfj.fk_facturefourn = f.rowid
             LEFT JOIN ".MAIN_DB_PREFIX."paiementfourn p ON p.rowid = pfj.fk_paiementfourn
             LEFT JOIN ".MAIN_DB_PREFIX."accounting_bookkeeping bk
                    ON bk.fk_doc = f.rowid AND bk.doc_type = 'supplier_invoice'
@@ -403,7 +403,7 @@ function accountingexport_get_reglements($db, $date_debut, $date_fin, $entity = 
                    p.amount, s.nom AS tiers, f.ref AS num_facture,
                    ba.ref AS compte_banque
             FROM ".MAIN_DB_PREFIX."paiementfourn p
-            JOIN ".MAIN_DB_PREFIX."paiementfourn_facture pff ON pff.fk_paiementfourn = p.rowid
+            JOIN ".MAIN_DB_PREFIX."paiementfourn_facturefourn pff ON pff.fk_paiementfourn = p.rowid
             JOIN ".MAIN_DB_PREFIX."facture_fourn f ON f.rowid = pff.fk_facturefourn
             JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = f.fk_soc
             LEFT JOIN ".MAIN_DB_PREFIX."bank b ON b.rowid = p.fk_bank
