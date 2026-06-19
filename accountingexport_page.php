@@ -122,13 +122,56 @@ print '<td class="fieldrequired">'.$langs->trans('DateFin').'</td>';
 print '<td><input type="date" name="date_fin" class="flat" value="'.dol_htmlentities($date_fin_str).'"></td>';
 print '</tr>';
 
+/**
+ * Recupere les exercices comptables configures dans Dolibarr
+ * (Comptabilite > Configuration > Exercices comptables), avec leurs bornes
+ * REELLES (utile pour un premier exercice a cheval sur deux annees civiles
+ * ou tout exercice ne suivant pas l'annee civile).
+ *
+ * @param  DoliDB  $db
+ * @param  int     $entity
+ * @return array   Liste de ['label'=>, 'date_start'=>'YYYY-MM-DD', 'date_end'=>'YYYY-MM-DD']
+ */
+function accountingexport_get_exercices($db, $entity)
+{
+    $sql = "SELECT label, date_start, date_end FROM ".MAIN_DB_PREFIX."accounting_fiscalyear
+            WHERE entity = ".((int)$entity)."
+            ORDER BY date_start DESC LIMIT 6";
+    $res = $db->query($sql);
+    $out = array();
+    if ($res) {
+        while ($o = $db->fetch_object($res)) {
+            $out[] = array(
+                'label'      => $o->label ?: dol_print_date($db->jdate($o->date_start),'%Y').'-'.dol_print_date($db->jdate($o->date_end),'%Y'),
+                'date_start' => substr($o->date_start, 0, 10),
+                'date_end'   => substr($o->date_end, 0, 10),
+            );
+        }
+        $db->free($res);
+    }
+    return $out;
+}
+
+$exercices = array();
+try { $exercices = accountingexport_get_exercices($db, $conf->entity); } catch (Exception $e) { $exercices = array(); }
+
 $raccourcis = array(
     array('Mois en cours',  date('Y-m-01'),                          date('Y-m-t')),
     array('Trimestre',      date('Y-m-01', mktime(0,0,0,ceil(date('n')/3)*3-2,1,date('Y'))), date('Y-m-t', mktime(0,0,0,ceil(date('n')/3)*3,1,date('Y')))),
-    array('Exercice 2026',  '2026-01-01',                            '2026-12-31'),
-    array('Exercice 2025',  '2025-01-01',                            '2025-12-31'),
     array('Mois precedent', date('Y-m-01', strtotime('-1 month')),   date('Y-m-t', strtotime('-1 month'))),
 );
+if (!empty($exercices)) {
+    // Exercices reels tels que configures dans Dolibarr (gere nativement les
+    // exercices a cheval sur deux annees civiles, dont le premier exercice).
+    foreach ($exercices as $ex) {
+        $raccourcis[] = array('Exercice '.$ex['label'], $ex['date_start'], $ex['date_end']);
+    }
+} else {
+    // Aucun exercice configure dans Dolibarr : repli sur annee civile.
+    $raccourcis[] = array('Exercice '.date('Y'),     date('Y').'-01-01',     date('Y').'-12-31');
+    $raccourcis[] = array('Exercice '.(date('Y')-1), (date('Y')-1).'-01-01', (date('Y')-1).'-12-31');
+    print '<tr class="oddeven"><td></td><td colspan="3"><span class="opacitymedium small">Aucun exercice comptable configure (Comptabilite > Configuration > Exercices comptables) — raccourcis bases sur l\'annee civile par defaut. Vous pouvez toujours saisir n\'importe quelle date manuellement ci-dessus.</span></td></tr>';
+}
 print '<tr class="oddeven"><td></td><td colspan="3">';
 foreach ($raccourcis as $r) {
     $url = '?date_debut='.$r[1].'&date_fin='.$r[2].'&type_export='.urlencode($type_export);
@@ -172,7 +215,8 @@ if (ae_has_right($user, 'accountingexport', 'export')) {
     // envoyer l'etat REEL des champs (type_export, dates, statut...) tel que selectionne
     // dans le navigateur, sans necessiter un clic prealable sur "Previsualiser".
     print '<button type="submit" class="butAction" formaction="export_excel.php" formmethod="GET">'.$langs->trans('BtnTelechargerExcel').'</button>&nbsp;&nbsp;';
-    print '<button type="submit" class="butAction" formaction="export_fec.php" formmethod="GET">'.$langs->trans('BtnExporterFEC').'</button>';
+    print '<button type="submit" class="butAction" formaction="export_fec.php" formmethod="GET">'.$langs->trans('BtnExporterFEC').'</button>&nbsp;&nbsp;';
+    print '<a class="butAction" href="fec_check.php">Verifier conformite FEC</a>';
 }
 print '</div>';
 print '</form>';

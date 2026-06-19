@@ -113,7 +113,10 @@ function fec_get_lignes_ventes($db, $date_debut, $date_fin, $pcg, $conf, &$seq)
     $jlib  = 'Journal des ventes';
     $annee = substr($date_debut, 0, 4);
 
+    // Le FEC doit refleter des ecritures definitives : on exclut les factures
+    // brouillon (statut 0), pas encore validees, qui peuvent encore changer.
     $factures = accountingexport_get_factures_clients($db, $date_debut, $date_fin, -1, 0);
+    $factures = array_values(array_filter($factures, function($f) { return (int)$f->statut !== 0; }));
     $lignes   = array();
 
     foreach ($factures as $f) {
@@ -185,7 +188,9 @@ function fec_get_lignes_achats($db, $date_debut, $date_fin, $pcg, $conf, &$seq)
     $jlib  = 'Journal des achats';
     $annee = substr($date_debut, 0, 4);
 
+    // Idem que pour les ventes : on exclut les factures fournisseur brouillon.
     $factures = accountingexport_get_factures_fournisseurs($db, $date_debut, $date_fin, -1, 0);
+    $factures = array_values(array_filter($factures, function($f) { return (int)$f->statut !== 0; }));
     $lignes   = array();
 
     foreach ($factures as $f) {

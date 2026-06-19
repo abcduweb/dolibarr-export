@@ -15,7 +15,7 @@ class modAccountingExport extends DolibarrModules
         $this->module_position = 500;
         $this->name          = preg_replace('/^mod/i', '', get_class($this));
         $this->description   = 'Export comptable Excel et FEC conforme DGFiP (PCG français, TVA multi-taux)';
-        $this->version       = '1.0.7';
+        $this->version       = '1.2.0';
         $this->const_name    = 'MAIN_MODULE_'.strtoupper($this->name);
         $this->picto         = 'accountingexport@accountingexport';
         $this->depends       = array();
@@ -84,6 +84,21 @@ class modAccountingExport extends DolibarrModules
             'url'      => '/accountingexport/accountingexport_page.php?type=fec',
             'langs'    => 'accountingexport@accountingexport',
             'position' => 102,
+            'enabled'  => 'isModEnabled("accountingexport")',
+            'perms'    => '$user->hasRight("accountingexport","export")',
+            'target'   => '',
+            'user'     => 0,
+        );
+
+        $this->menu[$r] = array(
+            'fk_menu'  => 'fk_mainmenu=accountancy,fk_leftmenu=accountingexport',
+            'type'     => 'left',
+            'titre'    => 'Verifier conformite FEC',
+            'mainmenu' => 'accountancy',
+            'leftmenu' => 'accountingexport_feccheck',
+            'url'      => '/accountingexport/fec_check.php',
+            'langs'    => 'accountingexport@accountingexport',
+            'position' => 103,
             'enabled'  => 'isModEnabled("accountingexport")',
             'perms'    => '$user->hasRight("accountingexport","export")',
             'target'   => '',
