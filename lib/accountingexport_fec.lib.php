@@ -133,39 +133,58 @@ function fec_get_lignes_ventes($db, $date_debut, $date_fin, $pcg, $conf, &$seq)
             $pref, $dfec, 'Facture '.$pref.' - '.$f->client_nom,
             $ttc, 0, '', '', $dfec, '', '');
 
-        // Lignes TVA et produit
+        // Lignes TVA et produit, ventilees par taux si possible
+        $tva_total = round((float)$f->total_tva, 2);
         try { $tva_lines = accountingexport_get_tva_facture($db, $f->rowid); }
         catch (Exception $e) { $tva_lines = array(); }
 
-        if (!empty($tva_lines)) {
-            foreach ($tva_lines as $tva) {
-                $tx   = (float)$tva->tva_tx;
-                $bht  = round((float)$tva->base_ht, 2);
-                $mtva = round((float)$tva->montant_tva, 2);
+        $lignes_tmp = array();
+        $somme_ht_detail = 0.0;
+        $somme_tva_detail = 0.0;
+        foreach ($tva_lines as $tva) {
+            $tx   = (float)$tva->tva_tx;
+            $bht  = round((float)$tva->base_ht, 2);
+            $mtva = round((float)$tva->montant_tva, 2);
 
-                if (abs($bht) > 0.001) {
-                    $lignes[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
-                        $pcg['ventes'], 'Ventes', '', '',
-                        $pref, $dfec, 'Ventes '.$tx.'% - '.$f->client_nom,
-                        0, abs($bht));
-                }
-                if (abs($mtva) > 0.001) {
-                    $cle = accountingexport_get_tva_key($tx);
-                    $lignes[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
-                        $pcg[$cle], 'TVA collectée '.$tx.'%', '', '',
-                        $pref, $dfec, 'TVA '.$tx.'% - '.$f->client_nom,
-                        0, abs($mtva));
-                }
+            if (abs($bht) > 0.001) {
+                $lignes_tmp[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
+                    $pcg['ventes'], 'Ventes', '', '',
+                    $pref, $dfec, 'Ventes '.$tx.'% - '.$f->client_nom,
+                    0, abs($bht));
+                $somme_ht_detail += $bht;
             }
-        } else {
-            // Pas de lignes TVA : produit seul
+            if (abs($mtva) > 0.001) {
+                $cle = accountingexport_get_tva_key($tx);
+                $lignes_tmp[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
+                    $pcg[$cle], 'TVA collectée '.$tx.'%', '', '',
+                    $pref, $dfec, 'TVA '.$tx.'% - '.$f->client_nom,
+                    0, abs($mtva));
+                $somme_tva_detail += $mtva;
+            }
+        }
+
+        // Le detail par taux doit reconstituer exactement le HT et la TVA de
+        // l'en-tete de facture (deja calcules et fiables cote Dolibarr). S'il
+        // est absent ou incoherent (ecart > 2 centimes), on se replie sur une
+        // ligne globale a partir des totaux d'en-tete : l'ecriture reste
+        // toujours equilibree, quoi qu'il arrive avec la ventilation par taux.
+        if (empty($tva_lines) || abs($ht - $somme_ht_detail) > 0.02 || abs($tva_total - $somme_tva_detail) > 0.02) {
+            $lignes_tmp = array();
             if (abs($ht) > 0.001) {
-                $lignes[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
+                $lignes_tmp[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
                     $pcg['ventes'], 'Ventes', '', '',
                     $pref, $dfec, 'Ventes - '.$f->client_nom,
                     0, abs($ht));
             }
+            if (abs($tva_total) > 0.001) {
+                $lignes_tmp[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
+                    $pcg['tva20'], 'TVA collectée', '', '',
+                    $pref, $dfec, 'TVA - '.$f->client_nom,
+                    0, abs($tva_total));
+            }
         }
+
+        $lignes = array_merge($lignes, $lignes_tmp);
     }
     return $lignes;
 }
@@ -207,21 +226,39 @@ function fec_get_lignes_achats($db, $date_debut, $date_fin, $pcg, $conf, &$seq)
             $pref, $dfec, 'Achat '.$pref.' - '.$f->fournisseur_nom,
             abs($ht), 0);
 
-        // TVA déductible
+        // TVA déductible, ventilee par taux si possible
+        $tva_total = round((float)$f->total_tva, 2);
         try { $tva_lines = accountingexport_get_tva_facture_fourn($db, $f->rowid); }
         catch (Exception $e) { $tva_lines = array(); }
 
+        $lignes_tva_tmp = array();
+        $somme_tva_detail = 0.0;
         foreach ($tva_lines as $tva) {
             $tx   = (float)$tva->tva_tx;
             $mtva = round((float)$tva->montant_tva, 2);
             if (abs($mtva) > 0.001) {
                 $cle = accountingexport_get_tva_ded_key($tx);
-                $lignes[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
+                $lignes_tva_tmp[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
                     $pcg[$cle], 'TVA déductible '.$tx.'%', '', '',
                     $pref, $dfec, 'TVA '.$tx.'% - '.$f->fournisseur_nom,
                     abs($mtva), 0);
+                $somme_tva_detail += $mtva;
             }
         }
+
+        // Meme garde-fou que pour les ventes : si le detail par taux ne
+        // reconstitue pas le total_tva de l'en-tete de facture, on se replie
+        // sur une seule ligne globale a partir du total fiable de l'en-tete.
+        if (empty($tva_lines) || abs($tva_total - $somme_tva_detail) > 0.02) {
+            $lignes_tva_tmp = array();
+            if (abs($tva_total) > 0.001) {
+                $lignes_tva_tmp[] = fec_build_ligne($jcode, $jlib, $num, $dfec,
+                    $pcg['tva_ded20'], 'TVA déductible', '', '',
+                    $pref, $dfec, 'TVA - '.$f->fournisseur_nom,
+                    abs($tva_total), 0);
+            }
+        }
+        $lignes = array_merge($lignes, $lignes_tva_tmp);
 
         // Fournisseur (Crédit TTC)
         $lignes[] = fec_build_ligne($jcode, $jlib, $num, $dfec,

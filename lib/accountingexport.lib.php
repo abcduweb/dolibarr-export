@@ -492,7 +492,22 @@ function accountingexport_libelle_statut_fourn($statut)
  */
 function accountingexport_get_siret($db, $conf)
 {
-    $sql = "SELECT siren FROM ".MAIN_DB_PREFIX."societe WHERE entity = ".((int)$conf->entity)." LIMIT 1";
+    // "Ma societe" est deja chargee nativement par Dolibarr dans $mysoc
+    // (idprof1 = SIREN pour la France). On l'utilise en priorite : interroger
+    // llx_societe sans filtrer sur le bon enregistrement (ex: WHERE entity=X
+    // LIMIT 1) peut remonter n'importe quel tiers client/fournisseur au lieu
+    // de sa propre societe, et retourner un SIREN vide ou errone.
+    global $mysoc;
+    if (!empty($mysoc) && !empty($mysoc->idprof1)) {
+        return preg_replace('/\s/', '', $mysoc->idprof1);
+    }
+
+    // Repli si $mysoc indisponible : on cible explicitement l'enregistrement
+    // configure comme "ma societe" (MAIN_INFO_SOCIETE_ID), jamais un tiers au hasard.
+    $idsoc = !empty($conf->global->MAIN_INFO_SOCIETE_ID) ? (int)$conf->global->MAIN_INFO_SOCIETE_ID : 0;
+    if ($idsoc <= 0) { return ''; }
+
+    $sql = "SELECT siren FROM ".MAIN_DB_PREFIX."societe WHERE rowid = ".$idsoc;
     $res = $db->query($sql);
     if ($res && ($o = $db->fetch_object($res))) {
         $db->free($res);

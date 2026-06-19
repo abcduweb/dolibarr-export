@@ -35,8 +35,7 @@ if (empty($date_debut) || empty($date_fin)) {
 
 $siret = accountingexport_get_siret($db, $conf);
 if (empty($siret)) {
-    // On continue mais on log le warning
-    error_log('AccountingExport : SIRET manquant dans la fiche société');
+    setEventMessages('SIREN introuvable sur la fiche de votre societe (Accueil > Configuration > Societe/Organisation, champ "SIREN"). Le FEC est genere quand meme, mais le nom de fichier ne sera pas conforme tant que ce champ n\'est pas renseigne.', null, 'warnings');
     $siret = 'SIRET_INCONNU';
 }
 
