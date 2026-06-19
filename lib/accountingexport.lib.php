@@ -449,6 +449,48 @@ function accountingexport_format_date($date)
 }
 
 /**
+ * Formate un numero de compte PCG sur un nombre de chiffres fixe, en
+ * completant a DROITE avec des zeros (logique du plan comptable : "411"
+ * et "411000" designent le meme compte racine, le niveau de detail se
+ * lit de gauche a droite). On ne tronque jamais un compte plus long que
+ * le nombre de chiffres demande (sous-comptes auxiliaires plus precis).
+ *
+ * @param  mixed  $compte  Numero de compte (ex: "411", "706000", "44571000")
+ * @param  int    $digits  Nombre de chiffres cible (defaut 6, ex: 411 -> 411000)
+ * @return string
+ */
+function accountingexport_format_compte($compte, $digits = 6)
+{
+    $c = trim((string) $compte);
+    if ($c === '') return $c;
+
+    $digits = (int) $digits;
+    if ($digits <= 0) return $c;
+
+    // On ne complete que les comptes purement numeriques (le PCG francais
+    // standard) ; les codes mixtes/analytiques personnalises sont laisses tels quels.
+    if (!ctype_digit($c)) return $c;
+
+    if (strlen($c) < $digits) {
+        $c = str_pad($c, $digits, '0', STR_PAD_RIGHT);
+    }
+    return $c;
+}
+
+/**
+ * Lit le nombre de chiffres du plan comptable configure pour l'extraction
+ * Excel/CSV (Comptabilite > AccountingExport > Configuration). Defaut : 6.
+ *
+ * @param  Conf  $conf
+ * @return int
+ */
+function accountingexport_get_compte_digits($conf)
+{
+    $d = !empty($conf->global->ACCOUNTINGEXPORT_COMPTE_DIGITS) ? (int) $conf->global->ACCOUNTINGEXPORT_COMPTE_DIGITS : 6;
+    return ($d > 0 && $d <= 12) ? $d : 6;
+}
+
+/**
  * Libellé statut facture client.
  *
  * @param  int  $statut

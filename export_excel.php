@@ -42,6 +42,8 @@ if (empty($date_debut) || empty($date_fin)) {
 }
 
 $pcg = accountingexport_get_pcg_mapping($conf);
+$ae_digits = accountingexport_get_compte_digits($conf);
+foreach ($pcg as $ae_k => $ae_v) { $pcg[$ae_k] = accountingexport_format_compte($ae_v, $ae_digits); }
 
 // ── Tenter de charger PhpSpreadsheet ─────────────────────────────────────────
 $has_spreadsheet = accountingexport_load_spreadsheet();
@@ -61,6 +63,8 @@ exit;
 
 function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_debut, $date_fin, $statut, $entity)
 {
+    $ae_digits = accountingexport_get_compte_digits($conf);
+
     // Utilisation des classes PhpSpreadsheet avec namespaces complets (compatibilité PHP 7.4+)
     $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
     $spreadsheet->getProperties()
@@ -122,7 +126,7 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
             $sheet->setCellValue('C'.$row, $f->num_facture);
             $sheet->setCellValue('D'.$row, $f->client_nom);
             $sheet->setCellValue('E'.$row, $f->client_code);
-            $sheet->setCellValue('F'.$row, !empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['client']);
+            $sheet->setCellValue('F'.$row, accountingexport_format_compte(!empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['client'], $ae_digits));
             $sheet->setCellValue('G'.$row, $pcg['ventes']);
             ae_num($sheet,    'H'.$row, $f->total_ht);
 
@@ -188,7 +192,7 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
             $sheet->setCellValue('C'.$row, $f->num_facture);
             $sheet->setCellValue('D'.$row, $f->ref_fournisseur);
             $sheet->setCellValue('E'.$row, $f->fournisseur_nom);
-            $sheet->setCellValue('F'.$row, !empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['fournisseur']);
+            $sheet->setCellValue('F'.$row, accountingexport_format_compte(!empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['fournisseur'], $ae_digits));
             $sheet->setCellValue('G'.$row, $pcg['achats']);
             ae_num($sheet,    'H'.$row, $f->total_ht);
 
@@ -241,9 +245,9 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
             ae_date($sheet, 'A'.$row, $l->date_ecriture);
             $sheet->setCellValue('B'.$row, $l->num_ecriture);
             $sheet->setCellValue('C'.$row, $l->journal_code);
-            $sheet->setCellValue('D'.$row, $l->compte);
+            $sheet->setCellValue('D'.$row, accountingexport_format_compte($l->compte, $ae_digits));
             $sheet->setCellValue('E'.$row, $l->intitule_compte);
-            $sheet->setCellValue('F'.$row, $l->compte_auxiliaire);
+            $sheet->setCellValue('F'.$row, accountingexport_format_compte($l->compte_auxiliaire, $ae_digits));
             $sheet->setCellValue('G'.$row, $l->intitule_auxiliaire);
             $sheet->setCellValue('H'.$row, $l->libelle);
             ae_num($sheet, 'I'.$row, $l->debit);
@@ -267,7 +271,7 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
         $row = 2;
         foreach ($rows as $b) {
             if ($row%2===1) $sheet->getStyle('A'.$row.':H'.$row)->applyFromArray($style_even);
-            $sheet->setCellValue('A'.$row, $b['compte']);
+            $sheet->setCellValue('A'.$row, accountingexport_format_compte($b['compte'], $ae_digits));
             $sheet->setCellValue('B'.$row, $b['intitule']);
             ae_num($sheet, 'C'.$row, $b['debit_n']);
             ae_num($sheet, 'D'.$row, $b['credit_n']);
@@ -376,6 +380,8 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
 
 function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debut, $date_fin, $statut, $entity)
 {
+    $ae_digits = accountingexport_get_compte_digits($conf);
+
     $dd = str_replace('-','', $date_debut);
     $df = str_replace('-','', $date_fin);
     $filename = 'export_comptable_'.$dd.'-'.$df.'.csv';
@@ -413,7 +419,7 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
             $line = array(
                 accountingexport_format_date($f->date_facture),
                 $f->num_facture, $f->client_nom, $f->client_code,
-                !empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['client'],
+                accountingexport_format_compte(!empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['client'], $ae_digits),
                 $pcg['ventes'],
                 number_format((float)$f->total_ht, 2, ',', ''),
             );
@@ -454,7 +460,7 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
             $line = array(
                 accountingexport_format_date($f->date_facture),
                 $f->num_facture, $f->ref_fournisseur, $f->fournisseur_nom,
-                !empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['fournisseur'],
+                accountingexport_format_compte(!empty($f->compte_tiers_compta) ? $f->compte_tiers_compta : $pcg['fournisseur'], $ae_digits),
                 $pcg['achats'],
                 number_format((float)$f->total_ht, 2, ',', ''),
             );
@@ -507,8 +513,9 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
                 foreach ($rows as $l) {
                     fputcsv($out, array(
                         accountingexport_format_date($l->date_ecriture),
-                        $l->num_ecriture, $l->journal_code, $l->compte, $l->intitule_compte,
-                        $l->compte_auxiliaire, $l->intitule_auxiliaire, $l->libelle,
+                        $l->num_ecriture, $l->journal_code,
+                        accountingexport_format_compte($l->compte, $ae_digits), $l->intitule_compte,
+                        accountingexport_format_compte($l->compte_auxiliaire, $ae_digits), $l->intitule_auxiliaire, $l->libelle,
                         number_format((float)$l->debit, 2, ',', ''),
                         number_format((float)$l->credit, 2, ',', ''),
                         number_format((float)$l->solde_cumule, 2, ',', ''),
@@ -534,7 +541,7 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
                 fputcsv($out, array('N Compte','Intitule','Debit N','Credit N','Solde N','Debit N-1','Credit N-1','Solde N-1'), ';');
                 foreach ($rows as $b) {
                     fputcsv($out, array(
-                        $b['compte'], $b['intitule'],
+                        accountingexport_format_compte($b['compte'], $ae_digits), $b['intitule'],
                         number_format($b['debit_n'], 2, ',', ''),
                         number_format($b['credit_n'], 2, ',', ''),
                         number_format($b['solde_n'], 2, ',', ''),
@@ -614,7 +621,11 @@ function ae_date($sheet, $coord, $date)
 function ae_num($sheet, $coord, $val)
 {
     $sheet->setCellValue($coord, round((float)$val, 2));
-    $sheet->getStyle($coord)->getNumberFormat()->setFormatCode('#,##0.00');
+    // Format monetaire (Euro), aligne comme dans Excel "Format Comptabilite" :
+    // separateur de milliers, 2 decimales, negatifs entre parentheses en rouge.
+    $sheet->getStyle($coord)->getNumberFormat()->setFormatCode(
+        '_-* #,##0.00\ "€"_-;-* #,##0.00\ "€"_-;_-* "-"??\ "€"_-;_-@_-'
+    );
 }
 
 /**

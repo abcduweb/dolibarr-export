@@ -279,13 +279,15 @@ function ae_preview_achats($rows, $langs) {
 }
 
 function ae_preview_grandlivre($rows, $langs) {
+    global $conf;
+    $ae_digits = accountingexport_get_compte_digits($conf);
     print '<div class="div-table-responsive"><table class="noborder centpercent">';
     print '<tr class="liste_titre"><td>Date</td><td>Journal</td><td>Compte</td><td>Intitule</td><td>Libelle</td><td class="right">Debit</td><td class="right">Credit</td><td class="right">Solde</td></tr>';
     foreach ($rows as $l) {
         print '<tr class="oddeven">';
         print '<td>'.dol_htmlentities(accountingexport_format_date($l->date_ecriture)).'</td>';
         print '<td>'.dol_htmlentities($l->journal_code).'</td>';
-        print '<td>'.dol_htmlentities($l->compte).'</td>';
+        print '<td>'.dol_htmlentities(accountingexport_format_compte($l->compte, $ae_digits)).'</td>';
         print '<td>'.dol_htmlentities($l->intitule_compte).'</td>';
         print '<td>'.dol_htmlentities($l->libelle).'</td>';
         print '<td class="right">'.price(accountingexport_format_montant($l->debit)).'</td>';

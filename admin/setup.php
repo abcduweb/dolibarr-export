@@ -32,7 +32,7 @@ if ($action === 'setconfig') {
         'ACCOUNTINGEXPORT_ACCOUNT_TVA_DED55','ACCOUNTINGEXPORT_ACCOUNT_BANQUE',
         'ACCOUNTINGEXPORT_JOURNAL_VENTES','ACCOUNTINGEXPORT_JOURNAL_ACHATS',
         'ACCOUNTINGEXPORT_JOURNAL_BANQUE','ACCOUNTINGEXPORT_JOURNAL_OD',
-        'ACCOUNTINGEXPORT_FEC_SEPARATOR',
+        'ACCOUNTINGEXPORT_FEC_SEPARATOR', 'ACCOUNTINGEXPORT_COMPTE_DIGITS',
     );
     $ok = true;
     foreach ($params as $p) {
@@ -75,6 +75,12 @@ foreach ($pcg_rows as $k => $v) {
     print '<td><input type="text" name="'.dol_htmlentities($k).'" class="flat minwidth150" value="'.dol_htmlentities($cur).'" maxlength="20"></td>';
     print '<td class="opacitymedium small">'.dol_htmlentities($v[2]).'</td></tr>';
 }
+
+$digits_cur = isset($conf->global->ACCOUNTINGEXPORT_COMPTE_DIGITS) ? (int)$conf->global->ACCOUNTINGEXPORT_COMPTE_DIGITS : 6;
+print '<tr class="oddeven"><td>Format numero de compte (nb de chiffres)</td>';
+print '<td><input type="number" name="ACCOUNTINGEXPORT_COMPTE_DIGITS" class="flat" min="1" max="12" value="'.(int)$digits_cur.'"></td>';
+print '<td class="opacitymedium small">Complete a droite avec des zeros les comptes du plan comptable dans les exports Excel/CSV (ex: 6 chiffres -> "411" devient "411000"). N\'affecte pas le FEC, dont la norme DGFiP n\'impose aucune longueur fixe.</td></tr>';
+
 print '</table></div><br>';
 
 // ── Journaux ──────────────────────────────────────────────────────────────────
@@ -108,15 +114,14 @@ print '<option value="pipe"'.($sep_cur==='pipe'?' selected':'').'>Pipe (|)</opti
 print '</select></td>';
 print '<td class="opacitymedium small">Séparateur de champs dans le fichier FEC</td></tr>';
 
-// SIRET (lecture seule)
-$siret = ''; $rs = $db->query("SELECT siren FROM ".MAIN_DB_PREFIX."societe WHERE entity=".((int)$conf->entity)." LIMIT 1");
-if ($rs && ($o = $db->fetch_object($rs))) { $siret = $o->siren; $db->free($rs); }
-print '<tr class="even"><td>SIRET de la société</td>';
+// SIREN (lecture seule) - on lit "ma societe" (mysoc), jamais un tiers au hasard
+$siret = !empty($mysoc->idprof1) ? $mysoc->idprof1 : '';
+print '<tr class="even"><td>SIREN de la société</td>';
 print '<td>';
 if ($siret) { print '<strong>'.dol_htmlentities($siret).'</strong> <span class="badge badge-status4">Configuré</span>'; }
-else { print '<span class="badge badge-status1">Non configuré</span> — <a href="'.DOL_URL_ROOT.'/societe/edit.php">Compléter la fiche société</a>'; }
+else { print '<span class="badge badge-status1">Non configuré</span> — <a href="'.DOL_URL_ROOT.'/societe/admin/societe.php">Compléter la fiche société</a>'; }
 print '</td>';
-print '<td class="opacitymedium small">Utilisé pour le nom du fichier FEC : {SIRET}FEC{AAAAMMJJ}.txt</td></tr>';
+print '<td class="opacitymedium small">Utilisé pour le nom du fichier FEC : {SIREN}FEC{AAAAMMJJ}.txt</td></tr>';
 print '</table></div><br>';
 
 // Info module Accounting
