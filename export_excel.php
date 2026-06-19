@@ -215,6 +215,10 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
     }
 
     /* ── Onglet Grand Livre ────────────────────────────────────────────── */
+    if (in_array($type_export, array('grandlivre','all')) && !isModEnabled('accounting')) {
+        $sheet = $spreadsheet->createSheet(); $sheet->setTitle('Grand livre'); $sheets_done++;
+        $sheet->setCellValue('A1', 'Module Comptabilite non active dans Dolibarr - aucune ecriture disponible.');
+    }
     if (in_array($type_export, array('grandlivre','all')) && isModEnabled('accounting')) {
         $sheet = $spreadsheet->createSheet(); $sheet->setTitle('Grand livre'); $sheets_done++;
         $hdrs = array('Date','N° Écriture','Journal','N° Compte','Intitulé','Compte aux.','Intitulé aux.','Libellé','Débit','Crédit','Solde cumulé');
@@ -223,6 +227,10 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
 
         try { $rows = accountingexport_get_grand_livre($db, $date_debut, $date_fin, $entity); }
         catch (Exception $e) { $rows = array(); }
+
+        if (empty($rows)) {
+            $sheet->setCellValue('A2', 'Aucune ecriture - verifiez que les factures de la periode ont ete transferees en comptabilite (menu Comptabilite > Transfert en comptabilite).');
+        }
 
         $row = 2;
         foreach ($rows as $l) {
@@ -474,6 +482,63 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
                 number_format((float)$r->amount, 2, ',', ''),
                 $r->compte_banque,
             ), ';');
+        }
+    }
+
+    /* ── Grand livre ── */
+    if (in_array($type_export, array('grandlivre','all'))) {
+        if (!isModEnabled('accounting')) {
+            fputcsv($out, array('=== GRAND LIVRE — module Comptabilite non active ==='), ';');
+        } else {
+            fputcsv($out, array('=== GRAND LIVRE ==='), ';');
+            try { $rows = accountingexport_get_grand_livre($db, $date_debut, $date_fin, $entity); }
+            catch (Exception $e) { $rows = array(); }
+
+            if (empty($rows)) {
+                fputcsv($out, array('Aucune ecriture - verifiez que les factures de la periode ont ete transferees en comptabilite (menu Comptabilite > Transfert en comptabilite)'), ';');
+            } else {
+                fputcsv($out, array('Date','N Ecriture','Journal','N Compte','Intitule','Compte aux.','Intitule aux.','Libelle','Debit','Credit','Solde cumule'), ';');
+                foreach ($rows as $l) {
+                    fputcsv($out, array(
+                        accountingexport_format_date($l->date_ecriture),
+                        $l->num_ecriture, $l->journal_code, $l->compte, $l->intitule_compte,
+                        $l->compte_auxiliaire, $l->intitule_auxiliaire, $l->libelle,
+                        number_format((float)$l->debit, 2, ',', ''),
+                        number_format((float)$l->credit, 2, ',', ''),
+                        number_format((float)$l->solde_cumule, 2, ',', ''),
+                    ), ';');
+                }
+            }
+            fputcsv($out, array(), ';');
+        }
+    }
+
+    /* ── Balance ── */
+    if (in_array($type_export, array('balance','all'))) {
+        if (!isModEnabled('accounting')) {
+            fputcsv($out, array('=== BALANCE — module Comptabilite non active ==='), ';');
+        } else {
+            fputcsv($out, array('=== BALANCE ==='), ';');
+            try { $rows = accountingexport_get_balance($db, $date_debut, $date_fin, $entity); }
+            catch (Exception $e) { $rows = array(); }
+
+            if (empty($rows)) {
+                fputcsv($out, array('Aucune ecriture sur la periode'), ';');
+            } else {
+                fputcsv($out, array('N Compte','Intitule','Debit N','Credit N','Solde N','Debit N-1','Credit N-1','Solde N-1'), ';');
+                foreach ($rows as $b) {
+                    fputcsv($out, array(
+                        $b['compte'], $b['intitule'],
+                        number_format($b['debit_n'], 2, ',', ''),
+                        number_format($b['credit_n'], 2, ',', ''),
+                        number_format($b['solde_n'], 2, ',', ''),
+                        number_format($b['debit_n1'], 2, ',', ''),
+                        number_format($b['credit_n1'], 2, ',', ''),
+                        number_format($b['solde_n1'], 2, ',', ''),
+                    ), ';');
+                }
+            }
+            fputcsv($out, array(), ';');
         }
     }
 

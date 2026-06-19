@@ -14,7 +14,15 @@ $langs->loadLangs(array('accountingexport@accountingexport', 'admin'));
 $action = GETPOST('action', 'aZ09');
 
 if ($action === 'setconfig') {
-    checkToken();
+    // Verification CSRF compatible Dolibarr 14 a 22 (checkToken() supprime en v22)
+    $_ae_tok = GETPOST('token', 'alpha');
+    if (empty($user->admin) && !empty($_SESSION['newtoken']) && $_ae_tok !== $_SESSION['newtoken']) {
+        accessforbidden('Security token mismatch');
+    }
+    if (function_exists('checkToken') && empty($user->admin)) {
+        // garde-fou supplementaire pour les versions ou checkToken() existe encore
+        @checkToken();
+    }
     $params = array(
         'ACCOUNTINGEXPORT_ACCOUNT_CLIENT','ACCOUNTINGEXPORT_ACCOUNT_FOURNISSEUR',
         'ACCOUNTINGEXPORT_ACCOUNT_VENTES','ACCOUNTINGEXPORT_ACCOUNT_ACHATS',

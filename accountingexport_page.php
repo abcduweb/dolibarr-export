@@ -63,6 +63,8 @@ if ($action === 'preview' && ae_has_right($user, 'accountingexport', 'export')) 
                         $all = accountingexport_get_grand_livre($db, $date_debut_str, $date_fin_str, $entity);
                         $nb_total = count($all);
                         $lignes_preview = array_slice($all, 0, 10);
+                    } else {
+                        $erreurs[] = 'Le module Comptabilite de Dolibarr n\'est pas active : le Grand livre necessite ce module (Comptabilite > Modules) ainsi que des factures deja transferees en comptabilite.';
                     }
                     break;
                 case 'reglements':

@@ -15,7 +15,7 @@ class modAccountingExport extends DolibarrModules
         $this->module_position = 500;
         $this->name          = preg_replace('/^mod/i', '', get_class($this));
         $this->description   = 'Export comptable Excel et FEC conforme DGFiP (PCG français, TVA multi-taux)';
-        $this->version       = '1.0.1';
+        $this->version       = '1.0.2';
         $this->const_name    = 'MAIN_MODULE_'.strtoupper($this->name);
         $this->picto         = 'accountingexport@accountingexport';
         $this->depends       = array();
