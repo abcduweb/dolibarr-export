@@ -33,10 +33,11 @@ $statut         = (int) GETPOST('statut', 'int');
 $entity         = (int) GETPOST('entity', 'int');
 $inclure_avoirs = GETPOST('inclure_avoirs', 'alpha') === '1';
 
-$erreurs           = array();
-$lignes_preview    = array();
-$nb_total          = 0;
-$warning_transfert = false;
+$erreurs               = array();
+$lignes_preview        = array();
+$nb_total              = 0;
+$warning_transfert     = false;
+$preview_indisponible  = false;
 
 if ($action === 'preview' && ae_has_right($user, 'accountingexport', 'export')) {
     // Verification CSRF compatible Dolibarr 14 a 22 (checkToken supprime en v22)
@@ -71,6 +72,18 @@ if ($action === 'preview' && ae_has_right($user, 'accountingexport', 'export')) 
                     $all = accountingexport_get_reglements($db, $date_debut_str, $date_fin_str, $entity);
                     $nb_total = count($all);
                     $lignes_preview = array_slice($all, 0, 10);
+                    break;
+                case 'balance':
+                    if (isModEnabled('accounting')) {
+                        $nb_total = count(accountingexport_get_balance($db, $date_debut_str, $date_fin_str, $entity));
+                        $preview_indisponible = true; // pas de rendu ligne-par-ligne pour ce type
+                    } else {
+                        $erreurs[] = 'Le module Comptabilite de Dolibarr n\'est pas active : la Balance necessite ce module (Comptabilite > Modules) ainsi que des factures deja transferees en comptabilite.';
+                    }
+                    break;
+                case 'tva':
+                case 'all':
+                    $preview_indisponible = true; // recap TVA et export combine : utiliser Telecharger Excel
                     break;
             }
             if (isModEnabled('accounting') && !accountingexport_has_bookkeeping($db, $date_debut_str, $date_fin_str)) {
@@ -171,6 +184,10 @@ if (!empty($lignes_preview)) {
         case 'reglements': ae_preview_reglements($lignes_preview, $langs); break;
         default: print '<p class="opacitymedium">Previsualisation non disponible — utilisez Telecharger Excel.</p>';
     }
+} elseif ($action === 'preview' && $preview_indisponible && empty($erreurs)) {
+    print '<br><div class="info">Pas d\'apercu ligne par ligne pour ce type d\'export ('.dol_htmlentities($type_export).').'
+        .($nb_total > 0 ? ' '.$nb_total.' ligne(s) au total.' : '')
+        .' Utilisez "Telecharger Excel" pour obtenir le fichier complet.</div>';
 } elseif ($action === 'preview' && empty($erreurs)) {
     print '<br><div class="warning">Aucune facture trouvee sur cette periode.</div>';
 }
