@@ -149,7 +149,7 @@ function accountingexport_get_factures_clients($db, $date_debut, $date_fin, $sta
                    p.ref AS mode_reglement, p.datep AS date_paiement,
                    bk.subledger_account AS compte_tiers_compta,
                    bk.doc_ref AS ref_ecriture,
-                   bk.validated AS transfert_compta
+                   bk.date_validated AS transfert_compta
             FROM ".MAIN_DB_PREFIX."facture f
             LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = f.fk_soc
             LEFT JOIN ".MAIN_DB_PREFIX."paiement_facture pfj ON pfj.fk_facture = f.rowid
@@ -160,7 +160,7 @@ function accountingexport_get_factures_clients($db, $date_debut, $date_fin, $sta
               AND f.datef BETWEEN '".$db->escape($date_debut)."' AND '".$db->escape($date_fin)."'
               ".$sf."
             GROUP BY f.rowid, s.nom, s.code_client, p.ref, p.datep,
-                     bk.subledger_account, bk.doc_ref, bk.validated
+                     bk.subledger_account, bk.doc_ref, bk.date_validated
             ORDER BY f.datef ASC, f.ref ASC".$lc;
 
     $res = $db->query($sql);
@@ -221,7 +221,7 @@ function accountingexport_get_factures_fournisseurs($db, $date_debut, $date_fin,
                    s.nom AS fournisseur_nom, s.code_fournisseur,
                    p.ref AS mode_reglement, p.datep AS date_paiement,
                    bk.subledger_account AS compte_tiers_compta,
-                   bk.validated AS transfert_compta
+                   bk.date_validated AS transfert_compta
             FROM ".MAIN_DB_PREFIX."facture_fourn f
             LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = f.fk_soc
             LEFT JOIN ".MAIN_DB_PREFIX."paiementfourn_facture pfj ON pfj.fk_facturefourn = f.rowid
@@ -232,7 +232,7 @@ function accountingexport_get_factures_fournisseurs($db, $date_debut, $date_fin,
               AND f.datef BETWEEN '".$db->escape($date_debut)."' AND '".$db->escape($date_fin)."'
               ".$sf."
             GROUP BY f.rowid, s.nom, s.code_fournisseur, p.ref, p.datep,
-                     bk.subledger_account, bk.validated
+                     bk.subledger_account, bk.date_validated
             ORDER BY f.datef ASC, f.ref ASC".$lc;
 
     $res = $db->query($sql);
@@ -281,12 +281,12 @@ function accountingexport_get_grand_livre($db, $date_debut, $date_fin, $entity =
 {
     $ef = $entity > 0 ? 'bk.entity = '.((int)$entity) : 'bk.entity IN ('.getEntity('accountingjournalentry').')';
 
-    $sql = "SELECT bk.doc_date AS date_ecriture, bk.journal_code,
+    $sql = "SELECT bk.doc_date AS date_ecriture, bk.code_journal AS journal_code,
                    bk.piece_num AS num_ecriture,
                    bk.numero_compte AS compte, bk.label_compte AS intitule_compte,
                    bk.subledger_account AS compte_auxiliaire,
                    bk.subledger_label AS intitule_auxiliaire,
-                   bk.label AS libelle,
+                   bk.label_operation AS libelle,
                    bk.debit, bk.credit, bk.doc_ref
             FROM ".MAIN_DB_PREFIX."accounting_bookkeeping bk
             WHERE ".$ef."

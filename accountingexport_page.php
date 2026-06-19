@@ -61,9 +61,13 @@ if ($action === 'preview' && ae_has_right($user, 'accountingexport', 'export')) 
                     break;
                 case 'grandlivre':
                     if (isModEnabled('accounting')) {
-                        $all = accountingexport_get_grand_livre($db, $date_debut_str, $date_fin_str, $entity);
-                        $nb_total = count($all);
-                        $lignes_preview = array_slice($all, 0, 10);
+                        try {
+                            $all = accountingexport_get_grand_livre($db, $date_debut_str, $date_fin_str, $entity);
+                            $nb_total = count($all);
+                            $lignes_preview = array_slice($all, 0, 10);
+                        } catch (Exception $e) {
+                            $erreurs[] = 'Erreur SQL Grand livre : '.$e->getMessage();
+                        }
                     } else {
                         $erreurs[] = 'Le module Comptabilite de Dolibarr n\'est pas active : le Grand livre necessite ce module (Comptabilite > Modules) ainsi que des factures deja transferees en comptabilite.';
                     }
@@ -163,14 +167,12 @@ print '</table></div>';
 
 print '<div class="center" style="margin-top:14px">';
 if (ae_has_right($user, 'accountingexport', 'export')) {
-    $qs = '&type_export='.urlencode($type_export)
-        .'&date_debut='.urlencode($date_debut_str)
-        .'&date_fin='.urlencode($date_fin_str)
-        .'&statut='.(int)$statut
-        .'&inclure_avoirs='.($inclure_avoirs?1:0);
     print '<input type="submit" class="butAction" value="'.dol_htmlentities($langs->trans('BtnPrevisualiser')).'">&nbsp;&nbsp;';
-    print '<a class="butAction" href="export_excel.php?token='.newToken().$qs.'">'.$langs->trans('BtnTelechargerExcel').'</a>&nbsp;&nbsp;';
-    print '<a class="butAction" href="export_fec.php?token='.newToken().'&date_debut='.urlencode($date_debut_str).'&date_fin='.urlencode($date_fin_str).'">'.$langs->trans('BtnExporterFEC').'</a>';
+    // Boutons rattaches au MEME formulaire (formaction/formmethod) afin de toujours
+    // envoyer l'etat REEL des champs (type_export, dates, statut...) tel que selectionne
+    // dans le navigateur, sans necessiter un clic prealable sur "Previsualiser".
+    print '<button type="submit" class="butAction" formaction="export_excel.php" formmethod="GET">'.$langs->trans('BtnTelechargerExcel').'</button>&nbsp;&nbsp;';
+    print '<button type="submit" class="butAction" formaction="export_fec.php" formmethod="GET">'.$langs->trans('BtnExporterFEC').'</button>';
 }
 print '</div>';
 print '</form>';

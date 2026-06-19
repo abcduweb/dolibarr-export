@@ -105,7 +105,7 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
         $sheet->freezePane('A2');
 
         try { $rows = accountingexport_get_factures_clients($db, $date_debut, $date_fin, $statut>0?$statut-1:-1, $entity); }
-        catch (Exception $e) { $rows = array(); }
+        catch (Exception $e) { $rows = array(); $sheet->setCellValue('A2', 'ERREUR SQL : '.$e->getMessage()); }
 
         $row = 2; $tot_ht = 0; $tot_ttc = 0;
         $tot_tva = array_fill_keys($taux, 0);
@@ -171,7 +171,7 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
         $sheet->freezePane('A2');
 
         try { $rows = accountingexport_get_factures_fournisseurs($db, $date_debut, $date_fin, $statut>0?$statut-1:-1, $entity); }
-        catch (Exception $e) { $rows = array(); }
+        catch (Exception $e) { $rows = array(); $sheet->setCellValue('A2', 'ERREUR SQL : '.$e->getMessage()); }
 
         $row = 2; $tot_ht = 0; $tot_ttc = 0;
         $tot_tva = array_fill_keys($taux, 0);
@@ -225,10 +225,13 @@ function ae_export_xlsx($db, $conf, $user, $langs, $pcg, $type_export, $date_deb
         ae_write_headers($sheet, $hdrs, $style_hdr);
         $sheet->freezePane('A2');
 
+        $ae_err_gl = null;
         try { $rows = accountingexport_get_grand_livre($db, $date_debut, $date_fin, $entity); }
-        catch (Exception $e) { $rows = array(); }
+        catch (Exception $e) { $rows = array(); $ae_err_gl = $e->getMessage(); }
 
-        if (empty($rows)) {
+        if ($ae_err_gl) {
+            $sheet->setCellValue('A2', 'ERREUR SQL : '.$ae_err_gl);
+        } elseif (empty($rows)) {
             $sheet->setCellValue('A2', 'Aucune ecriture - verifiez que les factures de la periode ont ete transferees en comptabilite (menu Comptabilite > Transfert en comptabilite).');
         }
 
@@ -400,7 +403,7 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
         fputcsv($out, $hdrs, ';');
 
         try { $rows = accountingexport_get_factures_clients($db, $date_debut, $date_fin, $st, $entity); }
-        catch (Exception $e) { $rows = array(); }
+        catch (Exception $e) { $rows = array(); fputcsv($out, array('ERREUR SQL : '.$e->getMessage()), ';'); }
 
         foreach ($rows as $f) {
             try { $tva_l = accountingexport_get_tva_facture($db, $f->rowid); }
@@ -441,7 +444,7 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
         fputcsv($out, $hdrs, ';');
 
         try { $rows = accountingexport_get_factures_fournisseurs($db, $date_debut, $date_fin, $st, $entity); }
-        catch (Exception $e) { $rows = array(); }
+        catch (Exception $e) { $rows = array(); fputcsv($out, array('ERREUR SQL : '.$e->getMessage()), ';'); }
 
         foreach ($rows as $f) {
             try { $tva_l = accountingexport_get_tva_facture_fourn($db, $f->rowid); }
@@ -491,10 +494,13 @@ function ae_export_csv($db, $conf, $user, $langs, $pcg, $type_export, $date_debu
             fputcsv($out, array('=== GRAND LIVRE — module Comptabilite non active ==='), ';');
         } else {
             fputcsv($out, array('=== GRAND LIVRE ==='), ';');
+            $ae_err_gl = null;
             try { $rows = accountingexport_get_grand_livre($db, $date_debut, $date_fin, $entity); }
-            catch (Exception $e) { $rows = array(); }
+            catch (Exception $e) { $rows = array(); $ae_err_gl = $e->getMessage(); }
 
-            if (empty($rows)) {
+            if ($ae_err_gl) {
+                fputcsv($out, array('ERREUR SQL : '.$ae_err_gl), ';');
+            } elseif (empty($rows)) {
                 fputcsv($out, array('Aucune ecriture - verifiez que les factures de la periode ont ete transferees en comptabilite (menu Comptabilite > Transfert en comptabilite)'), ';');
             } else {
                 fputcsv($out, array('Date','N Ecriture','Journal','N Compte','Intitule','Compte aux.','Intitule aux.','Libelle','Debit','Credit','Solde cumule'), ';');
